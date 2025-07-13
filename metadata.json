@@ -1,5 +1,6 @@
 {
-  "name": "Copy of Copy of Snooker Time Tracker & Billing",
+  "name": "Copy of Snooker Time Tracker & Billing",
   "description": "A web application to track time and calculate billing for snooker matches. Users can select a table, set start and end times, and the app calculates the duration and cost.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "prompt": ""
 }
