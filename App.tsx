@@ -236,6 +236,26 @@ const ActiveMatchCard: React.FC<ActiveMatchCardProps> = ({ table, startTime, onE
     );
 };
 
+interface InfoItemProps {
+    icon?: React.ReactNode;
+    label: string;
+    value: string | number;
+    mono?: boolean;
+    bold?: boolean;
+    valueClass?: string;
+}
+
+const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, mono, bold, valueClass }) => (
+    <div>
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wider">
+            {icon}
+            <span>{label}</span>
+        </div>
+        <div className={`mt-1 text-white text-sm sm:text-base ${mono ? 'font-mono' : 'font-semibold'} ${bold ? 'font-bold' : ''} ${valueClass || ''}`}>
+            {value}
+        </div>
+    </div>
+);
 
 interface MatchCardProps {
   match: Match;
@@ -260,10 +280,17 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onDelete, onEdit, currency
         const date = new Date(isoString);
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     };
+    
+    const currencyFormatter = useMemo(() => new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+    }), [currency]);
 
   return (
     <div className="bg-gray-800 p-4 rounded-xl shadow-lg transition-all hover:shadow-green-500/20 hover:ring-1 hover:ring-green-500/50">
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 items-center text-gray-300">
+      {/* Desktop Layout */}
+      <div className="hidden lg:grid grid-cols-8 gap-4 items-center text-gray-300">
         <div className="flex items-center gap-3 font-bold text-lg text-white">
           <span className="text-green-400"># {match.serial.toString().padStart(3, '0')}</span>
         </div>
@@ -290,14 +317,14 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onDelete, onEdit, currency
         <div className="font-mono text-center">
             <div className="text-sm text-gray-400">Rate</div>
             <div className="text-lg font-semibold text-white">
-                {new Intl.NumberFormat('en-US', { style: 'currency', currency: currency, minimumFractionDigits: 2 }).format(match.rate)}
+                {currencyFormatter.format(match.rate)}
             </div>
         </div>
         <div className="flex justify-between items-center">
             <div className="text-right flex-grow">
                 <div className="text-sm text-gray-400">Amount</div>
                 <div className="text-lg font-bold text-green-400">
-                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: currency, minimumFractionDigits: 2 }).format(match.amount)}
+                    {currencyFormatter.format(match.amount)}
                 </div>
             </div>
             <div className="flex items-center ml-2">
@@ -308,6 +335,38 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onDelete, onEdit, currency
                     <TrashIcon className="w-5 h-5"/>
                 </button>
             </div>
+        </div>
+      </div>
+      
+      {/* Mobile & Tablet Layout */}
+      <div className="block lg:hidden">
+        <div className="flex justify-between items-start">
+            <div>
+                <div className="flex items-center gap-3 font-bold text-lg text-white">
+                    <span className="text-green-400"># {match.serial.toString().padStart(3, '0')}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1 text-gray-300">
+                    <TableIcon className="w-5 h-5 text-green-400" />
+                    <span className="font-semibold">Table {match.table}</span>
+                </div>
+            </div>
+            <div className="flex items-center -mr-2">
+                <button onClick={() => onEdit(match)} aria-label={`Edit match #${match.serial}`} className="p-2 text-gray-400 hover:text-blue-400 rounded-full hover:bg-gray-700 transition">
+                    <EditIcon className="w-5 h-5"/>
+                </button>
+                <button onClick={() => onDelete(match.serial)} aria-label={`Delete match #${match.serial}`} className="p-2 text-gray-400 hover:text-red-400 rounded-full hover:bg-gray-700 transition">
+                    <TrashIcon className="w-5 h-5"/>
+                </button>
+            </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-700 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5">
+            <InfoItem icon={<CalendarIcon className="w-4 h-4" />} label="Date" value={formatDate(match.startTime)} />
+            <InfoItem icon={<ClockIcon className="w-4 h-4" />} label="Start Time" value={formatTime(match.startTime)} />
+            <InfoItem icon={<ClockIcon className="w-4 h-4" />} label="End Time" value={formatTime(match.endTime)} />
+            <InfoItem label="Duration" value={`${match.duration} min`} mono />
+            <InfoItem label="Rate" value={currencyFormatter.format(match.rate)} mono />
+            <InfoItem label="Amount" value={currencyFormatter.format(match.amount)} mono bold valueClass="text-green-400 !text-lg" />
         </div>
       </div>
     </div>
@@ -609,6 +668,13 @@ const App = () => {
             setMatches(prev => prev.filter(match => match.serial !== serial));
         }
     }, []);
+
+    const handleClearAllMatches = useCallback(() => {
+        if (window.confirm("Are you sure you want to delete ALL match history? This action cannot be undone.")) {
+            setMatches([]);
+            setSerialCounter(1);
+        }
+    }, []);
     
     const handleOpenEditModal = useCallback((matchToEdit: Match) => {
         setEditingMatch(matchToEdit);
@@ -784,7 +850,7 @@ const App = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="text-center">
+                        <div className="text-center flex flex-wrap justify-center items-center gap-4">
                             <button 
                                 onClick={handleDownloadPdf} 
                                 disabled={matches.length === 0}
@@ -793,6 +859,15 @@ const App = () => {
                             >
                                 <DownloadIcon className="w-5 h-5"/>
                                 <span>Download PDF</span>
+                            </button>
+                            <button 
+                                onClick={handleClearAllMatches}
+                                disabled={matches.length === 0}
+                                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-lg disabled:bg-red-800/50 disabled:cursor-not-allowed disabled:transform-none"
+                                aria-label="Clear all match history"
+                            >
+                                <TrashIcon className="w-5 h-5"/>
+                                <span>Clear History</span>
                             </button>
                         </div>
                     </footer>
